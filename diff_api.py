@@ -8,22 +8,23 @@ app = Flask(__name__, static_url_path="")
 api = Api(app)
 auth = HTTPBasicAuth()
 
+
 DATABASE = [
     # Equal Data
-    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
+    {'id': 1, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 1, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
     # Different Size
-    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTw==X', 'side': 'right'},
+    {'id': 2, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 2, 'data': u'TFVDQVMgUklCRUlSTwX==', 'side': 'right'},
     # Missing right
-    {'id': 3, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 3, 'data': '', 'side': 'right'},
+    {'id': 3, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 3, 'data': u'', 'side': 'right'},
     # Missing left
-    {'id': 4, 'data': '', 'side': 'left'},
-    {'id': 4, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
+    {'id': 4, 'data': u'', 'side': 'left'},
+    {'id': 4, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
     # Differs
-    {'id': 5, 'data': 'TFVDQVMgUklCRUlSTw==A', 'side': 'left'},
-    {'id': 5, 'data': 'TFVDQVMgUklCRUlSTw==B', 'side': 'right'},
+    {'id': 5, 'data': u'VEVTVEUxIFRFU1RFMg==', 'side': 'left'},
+    {'id': 5, 'data': u'VEVTVEUyIFRFU1RFMQ==', 'side': 'right'},
 ]
 
 
@@ -58,7 +59,6 @@ def diff(left, right):
         else:  # If equal, move offset
             offset += 1
         x += 1
-
     return diffs, result
 
 
@@ -81,11 +81,16 @@ class DiffApi(Resource):
         pass
 
     def get(self, id):
+        left = [data for data in DATABASE if data['id'] == id and data['side'] == 'left']
+        right = [data for data in DATABASE if data['id'] == id and data['side'] == 'right']
+        r = diff(left[0]['data'], right[0]['data'])
         return jsonify(
             {
-                'response': {
-                    'uri': '/v1/diff/%d' % id
-                }
+                'result': {
+                    'code': r[0],
+                    'message': r[1]
+                },
+                'uri': '/v1/diff/%d' % id
             }
         )
 
@@ -93,7 +98,7 @@ class DiffApi(Resource):
 class DiffSidesApi(Resource):
     """ This is the API that received the left and right Base64 content and stores that in the database.
     """
-    # Definition of the sides
+    # Side constants
     LEFT = u'left'
     RIGHT = u'right'
     # The JSON model
