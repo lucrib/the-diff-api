@@ -1,11 +1,61 @@
 from flask import Flask, jsonify, abort, make_response
 from flask_restful import Api, Resource, reqparse, fields, marshal
 from flask_httpauth import HTTPBasicAuth
+import base64
 
 
 app = Flask(__name__, static_url_path="")
 api = Api(app)
 auth = HTTPBasicAuth()
+
+DATABASE = [
+    # Equal Data
+    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
+    # Different Size
+    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTw==X', 'side': 'right'},
+    # Missing right
+    {'id': 3, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 3, 'data': '', 'side': 'right'},
+    # Missing left
+    {'id': 4, 'data': '', 'side': 'left'},
+    {'id': 4, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
+    # Differs
+    {'id': 5, 'data': 'TFVDQVMgUklCRUlSTw==A', 'side': 'left'},
+    {'id': 5, 'data': 'TFVDQVMgUklCRUlSTw==B', 'side': 'right'},
+]
+
+
+def diff(left, right):
+    l = base64.b64decode(left)
+    r = base64.b64decode(right)
+    print '{} => {}'.format(l, r)
+    print '{}\n{}'.format(l, r)
+    n, m = len(l), len(r)
+    if n != m:
+        return -1
+    offset = 0
+    lenght = 0
+    result = u''
+    last = False
+    x = 0
+    while x < n:  # For every char in the string
+        if str(l)[x] != str(r)[x]:  # if they differs
+            offset = x  # Found a offset
+            for x2 in range(offset, n):  # Start checking the size of the diff
+                if str(l)[x2] != str(r)[x2]:
+                    lenght += 1
+                else:
+                    break
+            result += 'Offset: %d, Size: %d\n' % (offset, lenght)
+            x = offset + lenght
+            lenght = 0
+        else:
+            offset += 1
+        x+=1
+    print result
+    return result
 
 
 @auth.get_password
@@ -22,32 +72,11 @@ def unauthorized():
     return make_response(jsonify({'message': 'Unauthorized access'}), 403)
 
 
-database = [
-    {
-        'data': 'AAABBB',
-        'id': 1,
-        'side': 'left'
-    },
-    {
-        'data': 'AAAAAA',
-        'id': 2,
-        'side': 'left'
-
-    },
-    {
-        'data': 'BBBBBB',
-        'id': 3,
-        'side': 'left'
-    }
-]
-
-
 class DiffApi(Resource):
     def __init__(self):
         pass
 
     def get(self, id):
-
         return jsonify(
             {
                 'response': {
@@ -78,7 +107,7 @@ class DiffSidesApi(Resource):
 
     def get(self, id, side):
         self.validate_endpoint_uri(side)
-        r = [data for data in database if (data['id'] == id and data['side'] == side)]
+        r = [data for data in DATABASE if (data['id'] == id and data['side'] == side)]
         if not r:
             abort(404)
         # return marshal(r[0], self.diff_data_fields)
@@ -94,7 +123,7 @@ class DiffSidesApi(Resource):
     # FIXME IT is saving a new object instead of updating
     def put(self, id, side):
         self.validate_endpoint_uri(side)
-        data = [data for data in database if (data['id'] == id and data['side'] == side)]
+        data = [data for data in DATABASE if (data['id'] == id and data['side'] == side)]
         if data:
             args = self.reqparse.parse_args()
             new_data = self.sava_data(id, side, args)
@@ -103,10 +132,10 @@ class DiffSidesApi(Resource):
 
     def delete(self, id, side):
         self.validate_endpoint_uri(side)
-        for data in database:
+        for data in DATABASE:
             if data['id'] == id and data['side'] == side:
-                i = database.index(data)
-                database.pop(i)
+                i = DATABASE.index(data)
+                DATABASE.pop(i)
                 return make_response(jsonify({'message': 'deleted'}), 200)
         abort(404)
 
@@ -116,7 +145,7 @@ class DiffSidesApi(Resource):
             'data': args['data'],
             'side': side
         }
-        database.append(data)
+        DATABASE.append(data)
         return data
 
     def validate_endpoint_uri(self, side):
