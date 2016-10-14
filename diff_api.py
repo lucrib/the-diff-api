@@ -30,32 +30,36 @@ DATABASE = [
 def diff(left, right):
     l = base64.b64decode(left)
     r = base64.b64decode(right)
-    print '{} => {}'.format(l, r)
-    print '{}\n{}'.format(l, r)
+    # print '{} => {}'.format(l, r)
+    # print '{}\n{}'.format(l, r)
+    if l == r:
+        return 0, 'The data are equals'
     n, m = len(l), len(r)
     if n != m:
-        return -1
+        return -1, u'The data to compare has different sizes'
     offset = 0
-    lenght = 0
+    length = 0
     result = u''
-    last = False
+    diffs = 0
     x = 0
     while x < n:  # For every char in the string
         if str(l)[x] != str(r)[x]:  # if they differs
-            offset = x  # Found a offset
+            offset = x  # Found the beginning of a diff
             for x2 in range(offset, n):  # Start checking the size of the diff
-                if str(l)[x2] != str(r)[x2]:
-                    lenght += 1
+                if str(l)[x2] != str(r)[x2]:  # loop until the diff ends
+                    length += 1  # while different sum the length of the diff
                 else:
-                    break
-            result += 'Offset: %d, Size: %d\n' % (offset, lenght)
-            x = offset + lenght
-            lenght = 0
-        else:
+
+                    break  # Break and account the results
+            diffs += 1
+            result += u'Offset: %d, Length: %d\n' % (offset, length)
+            x = offset + length  # Change the first loop to continue from the last position of the las diff
+            length = 0  # Reset length for next interaction
+        else:  # If equal, move offset
             offset += 1
-        x+=1
-    print result
-    return result
+        x += 1
+
+    return diffs, result
 
 
 @auth.get_password
