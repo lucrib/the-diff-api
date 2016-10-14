@@ -11,20 +11,23 @@ auth = HTTPBasicAuth()
 
 DATABASE = [
     # Equal Data
-    {'id': 1, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 1, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
+    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
     # Different Size
-    {'id': 2, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 2, 'data': u'TFVDQVMgUklCRUlSTwX==', 'side': 'right'},
+    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTwX==', 'side': 'right'},
     # Missing right
-    {'id': 3, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 3, 'data': u'', 'side': 'right'},
+    {'id': 3, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
+    {'id': 3, 'data': '', 'side': 'right'},
     # Missing left
-    {'id': 4, 'data': u'', 'side': 'left'},
-    {'id': 4, 'data': u'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
+    {'id': 4, 'data': '', 'side': 'left'},
+    {'id': 4, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
     # Differs
-    {'id': 5, 'data': u'VEVTVEUxIFRFU1RFMg==', 'side': 'left'},
-    {'id': 5, 'data': u'VEVTVEUyIFRFU1RFMQ==', 'side': 'right'},
+    {'id': 5, 'data': 'VEVTVEUxIFRFU1RFMg==', 'side': 'left'},
+    {'id': 5, 'data': 'VEVTVEUyIFRFU1RFMQ==', 'side': 'right'},
+    # Missing the other side
+    {'id': 6, 'data': 'VEVTVEUxIFRFU1RFMg==', 'side': 'left'},
+    {'id': 7, 'data': 'VEVTVEUyIFRFU1RFMQ==', 'side': 'right'},
 ]
 
 
@@ -34,7 +37,7 @@ def diff(left, right):
     # print '{} => {}'.format(l, r)
     # print '{}\n{}'.format(l, r)
     if l == r:
-        return 0, 'The data are equals'
+        return 0, u'The data are equals'
     n, m = len(l), len(r)
     if n != m:
         return -1, u'The data to compare has different sizes'
@@ -77,12 +80,15 @@ def unauthorized():
 
 
 class DiffApi(Resource):
-    def __init__(self):
-        pass
 
     def get(self, id):
+        valid_id = [data['id'] for data in DATABASE if data['id'] == id]
+        if not valid_id:
+            abort(404)
         left = [data for data in DATABASE if data['id'] == id and data['side'] == 'left']
         right = [data for data in DATABASE if data['id'] == id and data['side'] == 'right']
+        if not left or not right:
+            abort(422)
         r = diff(left[0]['data'], right[0]['data'])
         return jsonify(
             {
@@ -96,8 +102,7 @@ class DiffApi(Resource):
 
 
 class DiffSidesApi(Resource):
-    """ This is the API that received the left and right Base64 content and stores that in the database.
-    """
+    """ This is the API that received the left and right Base64 content and stores that in the database."""
     # Side constants
     LEFT = u'left'
     RIGHT = u'right'
@@ -122,7 +127,7 @@ class DiffSidesApi(Resource):
         # return marshal(r[0], self.diff_data_fields)
         return jsonify(r)
 
-    # TODO Add a validaiton to do not overwrite existing data
+    # TODO Add a validation to do not overwrite existing data
     def post(self, id, side):
         self.validate_endpoint_uri(side)
         args = self.reqparse.parse_args()
@@ -166,6 +171,7 @@ api.add_resource(DiffApi, '/v1/diff/<int:id>', endpoint='diff')
 # Instead of having two different endpoints for the same purpose, it easier to transform the side in a parameter
 # The parameter is treated inside method calls
 api.add_resource(DiffSidesApi, '/v1/diff/<int:id>/<string:side>', endpoint='side')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
