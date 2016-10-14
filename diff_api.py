@@ -23,16 +23,20 @@ def unauthorized():
 
 database = [
     {
-        'data': u'',
-        'id': 1
+        'data': u'AAABBB',
+        'id': 1,
+        'side': 'left'
     },
     {
-        'data': fields.String,
-        'id': 2
+        'data': u'AAAAAA',
+        'id': 2,
+        'side': 'left'
+
     },
     {
-        'data': fields.String,
-        'id': 3
+        'data': u'BBBBBB',
+        'id': 3,
+        'side': 'left'
     }
 ]
 
@@ -44,24 +48,28 @@ to_be_diff = {
 
 class DiffApi(Resource):
 
-    LEFT = 'LEFT'
-    RIGHT = 'RIGHT'
+    LEFT = 'left'
+    RIGHT = 'right'
 
     def get(self, id, side):
-        v = 'Received a call for %s with id = %d' % (side, id)
-        return {'return': v}
+        data = [d for d in database if (d['id'] == id and d['side'] == side)]
+        if not data:
+            abort(404)
+        return jsonify({'return': d})
 
 
 class DiffLeftApi(DiffApi):
 
     def get(self, id):
-        return super(DiffLeftApi, self).get(id, self.LEFT)
+        response = super(DiffLeftApi, self).get(id, self.LEFT)
+        return response
 
 
 class DiffRightApi(DiffApi):
 
     def get(self, id):
-        return super(DiffRightApi, self).get(id, self.LEFT)
+        response = super(DiffRightApi, self).get(id, self.RIGHT)
+        return response
 
 
 api.add_resource(DiffLeftApi, '/v1/diff/<int:id>/left', endpoint='left')
