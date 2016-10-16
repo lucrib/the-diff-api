@@ -1,7 +1,9 @@
 import base64
 import unittest
-from app.rest_api import diff
+
 from hamcrest import *
+
+from rest_api import diff
 
 
 class DiffLogicTest(unittest.TestCase):

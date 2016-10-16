@@ -1,10 +1,9 @@
 import base64
 import json
 import unittest
-
+from rest_api import app as diff_api
+from rest_api import db
 from hamcrest import *
-
-from app import app as diff_api
 
 
 class BaseTest(unittest.TestCase):
@@ -22,9 +21,10 @@ class BaseTest(unittest.TestCase):
     def setUp(self):
         diff_api.config['TESTING'] = True
         self.app = diff_api.test_client()
+        db.create_all()
 
     def tearDown(self):
-        diff_api.clear_db()
+        db.drop_all()
 
     # Auxiliar methods
 

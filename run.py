@@ -1,6 +1,5 @@
 #!venv/bin/python
 
-from app import app
+from rest_api import app
 
-if __name__ == '__main__':
-    app.run(debug=True)
+app.run(debug=True)

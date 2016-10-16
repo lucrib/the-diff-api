@@ -1,14 +1,44 @@
 import base64
 import json
-from flask import jsonify, abort, make_response
-from flask_restful import Resource, reqparse
-from flask_httpauth import HTTPBasicAuth
-from app import db
-from app.models import DiffModel
+
 import sqlalchemy.exc
+from flask import Flask, jsonify, abort, make_response
+from flask_restful import Resource, reqparse, Api
+from flask_sqlalchemy import SQLAlchemy
 
-auth = HTTPBasicAuth()
 
+app = Flask(__name__, static_url_path="")
+app.config.from_pyfile('config.py')
+db = SQLAlchemy(app)
+api = Api(app)
+
+
+# MODELS
+
+class DiffModel(db.Model):
+    __tablename__ = "DIFF"
+    id = db.Column('id', db.Integer, primary_key=True, nullable=False)
+    side = db.Column('side', db.String, primary_key=True, nullable=False)
+    data = db.Column('data', db.String, nullable=False)
+
+    def __init__(self, id, side, data):
+        self.id = id
+        self.side = side
+        self.data = data
+
+    def __repr__(self):
+        return '<id:%d, side:%s>' % (self.id, self.side)
+
+    def str(self):
+        d = {
+            'id': self.id,
+            'side': self.side,
+            'data': self.data
+        }
+        return d
+
+
+# METHODS
 
 def diff(left, right):
     try:
@@ -45,6 +75,19 @@ def diff(left, right):
     return diffs, result
 
 
+def get_json(d, data=None):
+    m = {
+        'id': d.id,
+        'side': d.side,
+        'uri': 'http://localhost/v1/diff/%d/%s' % (d.id, d.side)
+    }
+    if data:
+        m['data'] = data
+    return m
+
+
+# APIs
+
 class DiffApi(Resource):
     def get(self, id):
         left = DiffModel.query.filter_by(id=id, side='left').first()
@@ -57,7 +100,7 @@ class DiffApi(Resource):
         return make_response(json.dumps(r), 200)
 
     def diff_json(self, id, code, message):
-        json = {
+        j = {
             'id': id,
             'result': {
                 'code': code,
@@ -65,20 +108,11 @@ class DiffApi(Resource):
             },
             'uri': 'http://localhost/v1/diff/%d' % id
         }
-        return json
+        return j
 
     def side_not_found(self, id):
         msg = 'It is missing one side'
         return json.dumps((self.diff_json(id, -2, msg)))
-
-    def post(self):
-        abort(404)
-
-    def put(self):
-        abort(404)
-
-    def delete(self):
-        abort(404)
 
 
 class DiffSidesApi(Resource):
@@ -159,12 +193,7 @@ class DiffSidesApi(Resource):
             abort(404)
 
 
-def get_json(d, data=None):
-    m = {
-        'id': d.id,
-        'side': d.side,
-        'uri': 'http://localhost/v1/diff/%d/%s' % (d.id, d.side)
-    }
-    if data:
-        m['data'] = data
-    return m
+api.add_resource(DiffApi, '/v1/diff/<int:id>', endpoint='diff')
+# Instead of having two different endpoints for the same purpose, it is easier to transform the side in a parameter
+# The parameter is treated inside method calls
+api.add_resource(DiffSidesApi, '/v1/diff/<int:id>/<string:side>', endpoint='side')
