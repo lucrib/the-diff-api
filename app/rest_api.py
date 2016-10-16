@@ -10,8 +10,11 @@ auth = HTTPBasicAuth()
 
 
 def diff(left, right):
-    l = base64.b64decode(left)
-    r = base64.b64decode(right)
+    try:
+        l = base64.b64decode(left)
+        r = base64.b64decode(right)
+    except Exception as e:
+        return -2, unicode(e.message)
     if l == r:
         return 0, u'The data are equals'
     n, m = len(l), len(r)
@@ -41,36 +44,20 @@ def diff(left, right):
     return diffs, result
 
 
-@auth.get_password
-def get_password(username):
-    if username == 'tester':
-        return 'python'
-    return None
-
-
-@auth.error_handler
-def unauthorized():
-    # return 403 instead of 401 to prevent browsers from displaying the default
-    # auth dialog
-    return make_response(jsonify({'message': 'Unauthorized access'}), 403)
-
-
 class DiffApi(Resource):
     def get(self, id):
         left = DiffModel.query.filter_by(id=id, side='left').first()
         right = DiffModel.query.filter_by(id=id, side='right').first()
         if not left.data or not right.data:
             abort(422)
-        left = bytearray(unicode(left))
-        right = bytearray(unicode(right))
-        result = diff(left, right)
+        result = diff(left.data, right.data)
         return jsonify(
             {
                 'result': {
                     'code': result[0],
                     'message': result[1]
                 },
-                'uri': '/v1/diff/%d' % id
+                'uri': 'http://localhost/v1/diff/%d' % id
             }
         )
 
