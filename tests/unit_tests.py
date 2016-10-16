@@ -1,7 +1,7 @@
 import base64
 import unittest
-from app import app
 from app.rest_api import diff
+from hamcrest import *
 
 
 class DiffLogicTest(unittest.TestCase):
@@ -12,8 +12,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == 0
-        assert diff_res[1] == u'The data are equals'
+        assert_that(diff_res[0], equal_to(0))
+        assert_that(diff_res[1], equal_to(u'The data are equals'))
 
     def test_one_diff_session(self):
         a = b'NOT EQUAL'
@@ -21,8 +21,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == 1
-        assert diff_res[1] == u'Offset: 0, Length: 3\n'
+        assert_that(diff_res[0], equal_to(1))
+        assert_that(diff_res[1], equal_to(u'Offset: 0, Length: 3\n'))
 
     def test_two_diff_session(self):
         a = b'NOT EQUAL, BUT GOOD'
@@ -30,9 +30,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == 2
-        assert u'Offset: 0, Length: 3\n' in diff_res[1]
-        assert u'Offset: 15, Length: 4\n' in diff_res[1]
+        assert_that(diff_res[0], equal_to(2))
+        assert_that(diff_res[1], equal_to(u'Offset: 0, Length: 3\nOffset: 15, Length: 4\n'))
 
     def test_entire_diff(self):
         a = b'ENTIRELYDIFFERENT'
@@ -40,8 +39,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == 1
-        assert u'Offset: 0, Length: 17\n' in diff_res[1]
+        assert_that(diff_res[0], equal_to(1))
+        assert_that(diff_res[1], equal_to(u'Offset: 0, Length: 17\n'))
 
     def test_diff_not_equal_size_left(self):
         a = b'ENTIRELYDIFFERENTAAA'
@@ -49,8 +48,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == -1
-        assert diff_res[1] == u'The data to compare has different sizes'
+        assert_that(diff_res[0], equal_to(-1))
+        assert_that(diff_res[1], equal_to(u'The data to compare has different sizes'))
 
     def test_diff_not_equal_size_right(self):
         a = b'ENTIRELYDIFFERENT'
@@ -58,8 +57,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == -1
-        assert diff_res[1] == u'The data to compare has different sizes'
+        assert_that(diff_res[0], equal_to(-1))
+        assert_that(diff_res[1], equal_to(u'The data to compare has different sizes'))
 
     def test_diff_none_left(self):
         a = b''
@@ -67,8 +66,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == -1
-        assert diff_res[1] == u'The data to compare has different sizes'
+        assert_that(diff_res[0], equal_to(-1))
+        assert_that(diff_res[1], equal_to(u'The data to compare has different sizes'))
 
     def test_diff_none_right(self):
         a = b'ENTIRELYDIFFERENT'
@@ -76,16 +75,8 @@ class DiffLogicTest(unittest.TestCase):
         left = base64.b64encode(a)
         right = base64.b64encode(b)
         diff_res = diff(left, right)
-        assert diff_res[0] == -1
-        assert diff_res[1] == u'The data to compare has different sizes'
-
-
-class IntegrationTest(unittest.TestCase):
-    tester = app.test_client(use_cookies=False)
-
-    def test(self):
-        res = self.tester.get('/v1/diff/1')
-        print res.default_mime_type
+        assert_that(diff_res[0], equal_to(-1))
+        assert_that(diff_res[1], equal_to(u'The data to compare has different sizes'))
 
 
 if __name__ == '__main__':
