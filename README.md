@@ -5,21 +5,21 @@ generate the diff between them.
 # Deploy
 In order to have the service up and running you have to:
 
-    1. Install virtual env to you environment. Take a look [here](https://virtualenv.pypa.io/en/stable/).
-    2. Clone this repo: `git clone https://github.com/lucrib/waes-assignment.git`
-    3. Move to the folder: `cd waes-assigngment`
-    4. Create virtualenv: `virtualenv venv`
-    5. Activate the virtualenv: `source venv/bin/activate`
-    6. Download the dependencies: `pip install -r requirements.txt`
-    7. Create the database: `python db_create.py`
-    8. Start the service: `python run.py`
+1. Install virtual env to you environment. Take a look [here](https://virtualenv.pypa.io/en/stable/).
+2. Clone this repo: `git clone https://github.com/lucrib/waes-assignment.git`
+3. Move to the folder: `cd waes-assigngment`
+4. Create virtualenv: `virtualenv venv`
+5. Activate the virtualenv: `source venv/bin/activate`
+6. Download the dependencies: `pip install -r requirements.txt`
+7. Create the database: `python db_create.py`
+8. Start the service: `python run.py`
 
 # Usage
 There are 3 endpoints available:
 
-    1. `http://host/v1/diff/<id>/left` - Receives data to be diff-ed
-    2. `http://host/v1/diff/<id>/right` - Receives data to be diff-ed on the other side
-    3. `http://host/v1/diff/<id>` - Compares the data under the same `id` and answer back the offset and length of the diff
+1. `http://host/v1/diff/<id>/left` - Receives data to be diff-ed
+2. `http://host/v1/diff/<id>/right` - Receives data to be diff-ed on the other side
+3. `http://host/v1/diff/<id>` - Compares the data under the same `id` and answer back the offset and length of the diff
 
 ## Sending the data to be diff-ed
 The left and right side expects to receive a JSON object through `POST` method as follows:
