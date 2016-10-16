@@ -7,7 +7,6 @@ from app import db
 from app.models import DiffModel
 import sqlalchemy.exc
 
-
 auth = HTTPBasicAuth()
 
 
@@ -58,7 +57,6 @@ def unauthorized():
 
 
 class DiffApi(Resource):
-
     def get(self, id):
         left = DiffModel.query.filter_by(id=id, side='left').first()
         right = DiffModel.query.filter_by(id=id, side='right').first()
@@ -93,12 +91,6 @@ class DiffSidesApi(Resource):
     LEFT = u'left'
     RIGHT = u'right'
     # The JSON model
-    diff_data_fields = {
-        "id": fields.Integer,
-        "data": fields.String,
-        "side": fields.String,
-        "uri": fields.Url("side", absolute=True)
-    }
 
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
@@ -110,10 +102,15 @@ class DiffSidesApi(Resource):
         self.validate_endpoint_uri(side)
         d = DiffModel.query.filter_by(id=id, side=unicode(side)).first()
         if not d:
-            abort(404)
-        return marshal(d, self.diff_data_fields)
+            r = {
+                'message': 'Invalid ID.'
+            }
+            return make_response(jsonify(r), 404)
+        r = get_json(d, data=d.data)
+        return make_response(jsonify(r), 200)
 
     def post(self, id, side):
+        """ Receives a diff side data and stores in the database"""
         self.validate_endpoint_uri(side)
         args = self.reqparse.parse_args()
         d = DiffModel(id, side, args['data'])
@@ -125,16 +122,8 @@ class DiffSidesApi(Resource):
                 'message': 'This ID is already in use. To update make a PUT request.'
             }
             return make_response(jsonify(error), 409)
-        m = {
-            'id': d.id,
-            'side': d.side,
-            'data': d.data,
-            'uri': url_for('side', id=id, side=side)
-        }
-        # print m
-        r = make_response(json.dumps(m), 201)
-        # print r
-        return r
+        m = get_json(d)
+        return make_response(jsonify(m), 201)
 
     def put(self, id, side):
         self.validate_endpoint_uri(side)
@@ -149,8 +138,9 @@ class DiffSidesApi(Resource):
             error = {
                 'message': e.message
             }
-            make_response(jsonify(error, 401))
-        return marshal(d, self.diff_data_fields), 200
+            return make_response(jsonify(error), 401)
+        r = get_json(d)
+        return make_response(jsonify(r), 200)
 
     def delete(self, id, side):
         self.validate_endpoint_uri(side)
@@ -163,10 +153,21 @@ class DiffSidesApi(Resource):
         except Exception as e:
             return make_response(jsonify({'message': e.message}), 401)
         ret = {
-           'message': 'Diff deleted.'
+            'message': 'Diff deleted.'
         }
-        return make_response(jsonify(ret), 200)
+        return make_response(jsonify(ret), 204)
 
     def validate_endpoint_uri(self, side):
         if str(side) not in [u'left', u'right']:
             abort(404)
+
+
+def get_json(d, data=None):
+    m = {
+        'id': d.id,
+        'side': d.side,
+        'uri': 'http://localhost/v1/diff/%d/%s' % (d.id, d.side)
+    }
+    if data:
+        m['data'] = data
+    return m

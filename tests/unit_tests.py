@@ -89,14 +89,4 @@ class IntegrationTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import coverage
-
-    cov = coverage.Coverage()
-    cov.start()
-
     unittest.main()
-
-    cov.stop()
-    cov.save()
-    cov.report()
-    cov.html_report()

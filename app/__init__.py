@@ -25,3 +25,9 @@ api.add_resource(DiffApi, '/v1/diff/<int:id>', endpoint='diff')
 # Instead of having two different endpoints for the same purpose, it easier to transform the side in a parameter
 # The parameter is treated inside method calls
 api.add_resource(DiffSidesApi, '/v1/diff/<int:id>/<string:side>', endpoint='side')
+
+
+def clear_db():
+    db.drop_all()
+    db.create_all()
+app.clear_db = clear_db

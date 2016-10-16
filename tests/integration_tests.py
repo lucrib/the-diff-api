@@ -1,116 +1,90 @@
 import unittest
 import json
-import ast
+import base64
 from hamcrest import *
 from app import app as diff_api
 
 
-class BaseTest(unittest.TestCase):
+class TestDiffSideAPI(unittest.TestCase):
+
+    content_type = "application/json"
 
     def setUp(self):
         diff_api.config['TESTING'] = True
         self.app = diff_api.test_client()
 
-    def call(self, method, ep, **kwargs):
-        if method == 'GET':
-            return self.app.get(ep, **kwargs)
-        elif method == 'POST':
-            return self.app.post(ep, **kwargs)
-        elif method == 'PUT':
-            return self.app.put(ep, **kwargs)
-        elif method == 'DELETE':
-            return self.app.delete(ep, **kwargs)
-        return None
+    def tearDown(self):
+        diff_api.clear_db()
 
-    def call_diff(self, method, id, **kwarg):
-        ep = '/v1/diff/%d' % id
-        return self.call(method, ep, **kwarg)
+    def test_post_get_put_delete_diff_left(self):
+        self.post_get_put_delete_diff_side('left')
 
-    def call_diff_side(self, method, id, side, **kwarg):
+    def test_post_get_put_delete_diff_right(self):
+        self.post_get_put_delete_diff_side('right')
+
+    def test_get_invalid_id_left(self):
+        self.get_invalid_id_side('left')
+
+    def test_get_invalid_id_right(self):
+        self.get_invalid_id_side('right')
+
+    def get_invalid_id_side(self, side):
+        ep = '/v1/diff/%d/%s' % (99, side)
+        # GET
+        rv = self.app.get(ep)
+        assert_that(rv, not_none())
+        assert_that(rv.status_code, equal_to(404))
+        assert_that(rv.content_type, has_string('application/json'))
+        r_data = json.loads(rv.data)
+        assert_that(r_data, has_key('message'))
+        assert_that(r_data['message'], contains_string('Invalid ID.'))
+
+    def post_get_put_delete_diff_side(self, side):
+        id = 1
+        data = {
+            "data": base64.b64encode(b'LUCAS RIBEIRO')
+        }
+        ed = self.expected_data(id, side)
         ep = '/v1/diff/%d/%s' % (id, side)
-        return self.call(method, ep, **kwarg)
-
-
-class DiffSideTest(BaseTest):
-    side = ''
-
-    def test_get_valid_diff(self):
-        # Arrange
-        expected = {
-            "message": {
-                "id": 1,
-                "side": self.side,
-                "data": "LUCAS RIBEIRO"
-            }
-        }
-        # Act
-        rv = self.call_diff_side('GET', 1, self.side)
-        print rv.data
-        actual = ast.literal_eval(rv.data)
-        print actual
-        # Assert
-        assert_that(actual, equal_to(expected))
-        assert_that(rv.status_code, equal_to(200))
-
-    def test_post(self):
-        # Arrange
-        expected = {
-            "message": {
-                "id": 1,
-                "side": self.side,
-                "data": "LUCAS RIBEIRO",
-                "uri": "/v1/diff/1/%s" % self.side
-            }
-        }
-        data = {
-            "data": u"LUCAS RIBEIRO"
-        }
-        # Act
-        rv = self.call_diff_side('POST', 2, self.side, data=json.dumps(data), content_type="application/json")
-        actual = json.dumps(rv.data)
-        print actual
-        print expected
-        # Assert
-        assert_that(actual, equal_to(expected))
-
-
-class LeftDiffTest(DiffSideTest):
-    side = 'left'
-
-
-class RightDiffTest(DiffSideTest):
-    side = 'right'
-
-
-class TestDiffSideAPI(BaseTest):
-
-    def test_create_left_diff(self):
-        data = {
-            "data": "LUCAS RIBEIRO"
-        }
-        content_type = "application/json"
-        rv = self.app.post('/v1/diff/1/left', data=json.dumps(data), content_type=content_type)
-        # print json.loads(rv.data)
+        # POST
+        rv = self.app.post(ep, data=json.dumps(data), content_type=self.content_type)
+        assert_that(rv, not_none())
         assert_that(rv.status_code, equal_to(201))
         assert_that(rv.content_type, has_string('application/json'))
+        assert_that(json.loads(rv.data), equal_to(ed))
+        # GET
+        ed = self.expected_data(id, side, data=data)
+        rv = self.app.get(ep)
+        assert_that(rv, not_none())
+        assert_that(rv.status_code, equal_to(200))
+        assert_that(rv.content_type, has_string('application/json'))
+        assert_that(json.loads(rv.data), equal_to(ed))
+        # PUT
+        data = {
+            "data": base64.b64encode(b"RIBEIRO LUCAS")
+        }
+        ed = self.expected_data(id, side)
+        rv = self.app.put(ep, data=json.dumps(data), content_type=self.content_type)
+        assert_that(rv.status_code, equal_to(200))
+        assert_that(json.loads(rv.data), equal_to(ed))
+        assert_that(rv.content_type, has_string('application/json'))
+        # DELETE
+        rv = self.app.delete(ep, data=json.dumps(data), content_type=self.content_type)
+        assert_that(rv.status_code, equal_to(204))
+        assert_that(rv.content_type, has_string('application/json'))
+        assert_that(rv.data, equal_to(u''))
+
+    def expected_data(self, id, side, data=None):
+        expected_data = {
+            u'id': id,
+            u'side': unicode(side),
+            u'uri': unicode('http://localhost/v1/diff/%d/%s' % (id, side)),
+        }
+        if data:
+            expected_data[u'data'] = unicode(data['data'])
+        return expected_data
+
 
 if __name__ == '__main__':
-    import coverage
-    cov = coverage.Coverage()
-    cov.start()
-
-    # left = DiffSideApiTest('left')
-    # right = DiffSideApiTest('right')
-    #
-    # test_cases = [left, right]
-    # s = unittest.TestSuite()
-    # s.addTest(left)
-    # s.addTest(right)
-    # result = None
-    # s.run(result)
     unittest.main()
 
-    cov.stop()
-    cov.save()
-    cov.report()
-    # cov.html_report()
