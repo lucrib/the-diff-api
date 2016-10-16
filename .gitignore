@@ -1,4 +1,5 @@
 .idea/
 venv/
-*.pyc
+*.py[cod]
 *.db
+.idea/
