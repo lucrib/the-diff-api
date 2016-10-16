@@ -1,4 +1,5 @@
 import base64
+import json
 from flask import jsonify, abort, make_response
 from flask_restful import Resource, reqparse
 from flask_httpauth import HTTPBasicAuth
@@ -14,7 +15,7 @@ def diff(left, right):
         l = base64.b64decode(left)
         r = base64.b64decode(right)
     except Exception as e:
-        return -2, unicode(e.message)
+        return -3, unicode(e.message)
     if l == r:
         return 0, u'The data are equals'
     n, m = len(l), len(r)
@@ -48,18 +49,27 @@ class DiffApi(Resource):
     def get(self, id):
         left = DiffModel.query.filter_by(id=id, side='left').first()
         right = DiffModel.query.filter_by(id=id, side='right').first()
-        if not left.data or not right.data:
-            abort(422)
+        if not left or not right:
+            j = self.side_not_found(id)
+            return make_response(j, 404)
         result = diff(left.data, right.data)
-        return jsonify(
-            {
-                'result': {
-                    'code': result[0],
-                    'message': result[1]
-                },
-                'uri': 'http://localhost/v1/diff/%d' % id
-            }
-        )
+        r = self.diff_json(id, result[0], result[1])
+        return make_response(json.dumps(r), 200)
+
+    def diff_json(self, id, code, message):
+        json = {
+            'id': id,
+            'result': {
+                'code': code,
+                'message': message
+            },
+            'uri': 'http://localhost/v1/diff/%d' % id
+        }
+        return json
+
+    def side_not_found(self, id):
+        msg = 'It is missing one side'
+        return json.dumps((self.diff_json(id, -2, msg)))
 
     def post(self):
         abort(404)
@@ -76,6 +86,7 @@ class DiffSidesApi(Resource):
     # Side constants
     LEFT = u'left'
     RIGHT = u'right'
+
     # The JSON model
 
     def __init__(self):
