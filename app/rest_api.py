@@ -1,39 +1,19 @@
-from flask import jsonify, abort, make_response
+import base64
+import json
+from flask import jsonify, abort, make_response, url_for
 from flask_restful import Resource, reqparse, fields, marshal
 from flask_httpauth import HTTPBasicAuth
-import base64
+from app import db
+from app.models import DiffModel
+import sqlalchemy.exc
 
 
 auth = HTTPBasicAuth()
 
 
-DATABASE = [
-    # Equal Data
-    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 1, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
-    # Different Size
-    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 2, 'data': 'TFVDQVMgUklCRUlSTwX==', 'side': 'right'},
-    # Missing right
-    {'id': 3, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'left'},
-    {'id': 3, 'data': '', 'side': 'right'},
-    # Missing left
-    {'id': 4, 'data': '', 'side': 'left'},
-    {'id': 4, 'data': 'TFVDQVMgUklCRUlSTw==', 'side': 'right'},
-    # Differs
-    {'id': 5, 'data': 'VEVTVEUxIFRFU1RFMg==', 'side': 'left'},
-    {'id': 5, 'data': 'VEVTVEUyIFRFU1RFMQ==', 'side': 'right'},
-    # Missing the other side
-    {'id': 6, 'data': 'VEVTVEUxIFRFU1RFMg==', 'side': 'left'},
-    {'id': 7, 'data': 'VEVTVEUyIFRFU1RFMQ==', 'side': 'right'},
-]
-
-
 def diff(left, right):
     l = base64.b64decode(left)
     r = base64.b64decode(right)
-    # print '{} => {}'.format(l, r)
-    # print '{}\n{}'.format(l, r)
     if l == r:
         return 0, u'The data are equals'
     n, m = len(l), len(r)
@@ -80,23 +60,31 @@ def unauthorized():
 class DiffApi(Resource):
 
     def get(self, id):
-        valid_id = [data['id'] for data in DATABASE if data['id'] == id]
-        if not valid_id:
-            abort(404)
-        left = [data for data in DATABASE if data['id'] == id and data['side'] == 'left']
-        right = [data for data in DATABASE if data['id'] == id and data['side'] == 'right']
-        if not left or not right:
+        left = DiffModel.query.filter_by(id=id, side='left').first()
+        right = DiffModel.query.filter_by(id=id, side='right').first()
+        if not left.data or not right.data:
             abort(422)
-        r = diff(left[0]['data'], right[0]['data'])
+        left = bytearray(unicode(left))
+        right = bytearray(unicode(right))
+        result = diff(left, right)
         return jsonify(
             {
                 'result': {
-                    'code': r[0],
-                    'message': r[1]
+                    'code': result[0],
+                    'message': result[1]
                 },
                 'uri': '/v1/diff/%d' % id
             }
         )
+
+    def post(self):
+        abort(404)
+
+    def put(self):
+        abort(404)
+
+    def delete(self):
+        abort(404)
 
 
 class DiffSidesApi(Resource):
@@ -106,10 +94,11 @@ class DiffSidesApi(Resource):
     RIGHT = u'right'
     # The JSON model
     diff_data_fields = {
-        'data': fields.String,
-        'side': fields.String,
-        'uri': fields.Url('side')
-    }  # id is automatic handled
+        "id": fields.Integer,
+        "data": fields.String,
+        "side": fields.String,
+        "uri": fields.Url("side", absolute=True)
+    }
 
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
@@ -119,50 +108,65 @@ class DiffSidesApi(Resource):
 
     def get(self, id, side):
         self.validate_endpoint_uri(side)
-        r = [data for data in DATABASE if (data['id'] == id and data['side'] == side)]
-        if not r:
+        d = DiffModel.query.filter_by(id=id, side=unicode(side)).first()
+        if not d:
             abort(404)
-        # return marshal(r[0], self.diff_data_fields)
-        return jsonify(r)
+        return marshal(d, self.diff_data_fields)
 
-    # TODO Add a validation to do not overwrite existing data
     def post(self, id, side):
         self.validate_endpoint_uri(side)
         args = self.reqparse.parse_args()
-        data = self.sava_data(id, side, args)
-        return marshal(data, self.diff_data_fields), 201
+        d = DiffModel(id, side, args['data'])
+        db.session.add(d)
+        try:
+            db.session.commit()
+        except sqlalchemy.exc.IntegrityError:
+            error = {
+                'message': 'This ID is already in use. To update make a PUT request.'
+            }
+            return make_response(jsonify(error), 409)
+        m = {
+            'id': d.id,
+            'side': d.side,
+            'data': d.data,
+            'uri': url_for('side', id=id, side=side)
+        }
+        # print m
+        r = make_response(json.dumps(m), 201)
+        # print r
+        return r
 
-    # FIXME IT is saving a new object instead of updating
     def put(self, id, side):
         self.validate_endpoint_uri(side)
-        data = [data for data in DATABASE if (data['id'] == id and data['side'] == side)]
-        if data:
-            args = self.reqparse.parse_args()
-            new_data = self.sava_data(id, side, args)
-            return marshal(new_data, self.diff_data_fields)
-        abort(404)
+        args = self.reqparse.parse_args()
+        d = DiffModel.query.filter_by(id=id, side=side).first()
+        if not d:
+            abort(404)
+        d.data = args['data']
+        try:
+            db.session.commit()
+        except Exception as e:
+            error = {
+                'message': e.message
+            }
+            make_response(jsonify(error, 401))
+        return marshal(d, self.diff_data_fields), 200
 
     def delete(self, id, side):
         self.validate_endpoint_uri(side)
-        for data in DATABASE:
-            if data['id'] == id and data['side'] == side:
-                i = DATABASE.index(data)
-                DATABASE.pop(i)
-                return make_response(jsonify({'message': 'deleted'}), 200)
-        abort(404)
-
-    def sava_data(self, id, side, args):
-        data = {
-            'id': id,
-            'data': args['data'],
-            'side': side
+        d = DiffModel.query.filter_by(id=id, side=side).first()
+        if not d:
+            abort(404)
+        db.session.delete(d)
+        try:
+            db.session.commit()
+        except Exception as e:
+            return make_response(jsonify({'message': e.message}), 401)
+        ret = {
+           'message': 'Diff deleted.'
         }
-        DATABASE.append(data)
-        return data
+        return make_response(jsonify(ret), 200)
 
     def validate_endpoint_uri(self, side):
         if str(side) not in [u'left', u'right']:
             abort(404)
-
-
-

@@ -1,5 +1,6 @@
 import base64
 import unittest
+from app import app
 from app.rest_api import diff
 
 
@@ -77,6 +78,14 @@ class DiffLogicTest(unittest.TestCase):
         diff_res = diff(left, right)
         assert diff_res[0] == -1
         assert diff_res[1] == u'The data to compare has different sizes'
+
+
+class IntegrationTest(unittest.TestCase):
+    tester = app.test_client(use_cookies=False)
+
+    def test(self):
+        res = self.tester.get('/v1/diff/1')
+        print res.default_mime_type
 
 
 if __name__ == '__main__':
