@@ -1,27 +1,36 @@
 import base64
 import json
-
 import sqlalchemy.exc
 from flask import Flask, jsonify, abort, make_response
 from flask_restful import Resource, reqparse, Api
 from flask_sqlalchemy import SQLAlchemy
 
 
+# Creates the Flask app
 app = Flask(__name__, static_url_path="")
 app.config.from_pyfile('config.py')
 db = SQLAlchemy(app)
 api = Api(app)
 
 
-# MODELS
+# DATA MODELS
 
 class DiffModel(db.Model):
+    """
+    The model that represents a 'diff side data' in the database
+    """
     __tablename__ = "DIFF"
     id = db.Column('id', db.Integer, primary_key=True, nullable=False)
     side = db.Column('side', db.String, primary_key=True, nullable=False)
     data = db.Column('data', db.String, nullable=False)
 
     def __init__(self, id, side, data):
+        """
+        Creates a new DiffModel object that can be used to operate the database
+        :param id: The data ID
+        :param side: The data SIDE
+        :param data: The data itself
+        """
         self.id = id
         self.side = side
         self.data = data
@@ -29,7 +38,7 @@ class DiffModel(db.Model):
     def __repr__(self):
         return '<id:%d, side:%s>' % (self.id, self.side)
 
-    def str(self):
+    def __str__(self):
         d = {
             'id': self.id,
             'side': self.side,
@@ -38,9 +47,23 @@ class DiffModel(db.Model):
         return d
 
 
-# METHODS
+# THE DIFF LOGIC
 
 def diff(left, right):
+    """
+    The diff generator
+
+    The possible returns are:
+    -2 and  Error message if an exception happens
+    -1 and warning message if the data sizes are diferent
+    0 and message if the data are equals
+    >= 1 the code will be amount of diffs found and the message will be the diffs
+
+    :param left: The left data
+    :param right: The right data
+    :return: A tuple containing the return code and diffs/message when applicable
+    :rtype: tuple
+    """
     try:
         l = base64.b64decode(left)
         r = base64.b64decode(right)
@@ -75,7 +98,14 @@ def diff(left, right):
     return diffs, result
 
 
+# AUXILIARY METHODS
 def get_json(d, data=None):
+    """
+    Parse and DiffModel onejct to JSON
+    :param d: The DiffModel object
+    :param data: The data when needed (just for ease the GET answer)
+    :return:
+    """
     m = {
         'id': d.id,
         'side': d.side,
@@ -86,51 +116,74 @@ def get_json(d, data=None):
     return m
 
 
-# APIs
+def diff_json(id, code, message):
+    j = {
+        'id': id,
+        'result': {
+            'code': code,
+            'message': message
+        },
+        'uri': 'http://localhost/v1/diff/%d' % id
+    }
+    return j
 
+
+def side_not_found(id):
+    msg = 'It is missing one side'
+    return json.dumps((diff_json(id, -2, msg)))
+
+
+def validate_endpoint_uri(side):
+    """
+    Check if the call was made to the known side diff APIs
+    """
+    if str(side) not in [u'left', u'right']:
+        abort(404)
+
+
+# APIs
 class DiffApi(Resource):
+    """
+    The diff API
+    """
     def get(self, id):
+        """
+        Return the diff between the datas stored fot the specified id
+        :param id: The data id
+        """
         left = DiffModel.query.filter_by(id=id, side='left').first()
         right = DiffModel.query.filter_by(id=id, side='right').first()
         if not left or not right:
-            j = self.side_not_found(id)
+            j = side_not_found(id)
             return make_response(j, 404)
         result = diff(left.data, right.data)
-        r = self.diff_json(id, result[0], result[1])
+        r = diff_json(id, result[0], result[1])
         return make_response(json.dumps(r), 200)
-
-    def diff_json(self, id, code, message):
-        j = {
-            'id': id,
-            'result': {
-                'code': code,
-                'message': message
-            },
-            'uri': 'http://localhost/v1/diff/%d' % id
-        }
-        return j
-
-    def side_not_found(self, id):
-        msg = 'It is missing one side'
-        return json.dumps((self.diff_json(id, -2, msg)))
 
 
 class DiffSidesApi(Resource):
-    """ This is the API that received the left and right Base64 content and stores that in the database."""
-    # Side constants
+    """
+    This is the API that received the left and right Base64 content and stores in the database.
+    """
+    # Helpful constants
     LEFT = u'left'
     RIGHT = u'right'
 
-    # The JSON model
-
     def __init__(self):
+        """
+        Creates a argument parser to ease the request data extraction
+        """
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('data', type=str, required=True,
                                    help='No data received', location='json')
         super(DiffSidesApi, self).__init__()
 
     def get(self, id, side):
-        self.validate_endpoint_uri(side)
+        """
+        Answer GET requests
+        Validate the data and return the diff side data
+        """
+        validate_endpoint_uri(side)
         d = DiffModel.query.filter_by(id=id, side=unicode(side)).first()
         if not d:
             r = {
@@ -141,8 +194,11 @@ class DiffSidesApi(Resource):
         return make_response(jsonify(r), 200)
 
     def post(self, id, side):
-        """ Receives a diff side data and stores in the database"""
-        self.validate_endpoint_uri(side)
+        """
+        Answer POST requests
+        Receives a diff side data and stores in the database after validation
+        """
+        validate_endpoint_uri(side)
         args = self.reqparse.parse_args()
         d = DiffModel(id, side, args['data'])
         db.session.add(d)
@@ -157,7 +213,11 @@ class DiffSidesApi(Resource):
         return make_response(jsonify(m), 201)
 
     def put(self, id, side):
-        self.validate_endpoint_uri(side)
+        """
+        Answer PUT requests
+        Validate the data and update them in the database
+        """
+        validate_endpoint_uri(side)
         args = self.reqparse.parse_args()
         d = DiffModel.query.filter_by(id=id, side=side).first()
         if not d:
@@ -174,7 +234,11 @@ class DiffSidesApi(Resource):
         return make_response(jsonify(r), 200)
 
     def delete(self, id, side):
-        self.validate_endpoint_uri(side)
+        """
+        Answer the DELETE requests
+        Validate the data and delete the diff side data in the database
+        """
+        validate_endpoint_uri(side)
         d = DiffModel.query.filter_by(id=id, side=side).first()
         if not d:
             abort(404)
@@ -188,11 +252,8 @@ class DiffSidesApi(Resource):
         }
         return make_response(jsonify(ret), 204)
 
-    def validate_endpoint_uri(self, side):
-        if str(side) not in [u'left', u'right']:
-            abort(404)
 
-
+""" Register the APIs """
 api.add_resource(DiffApi, '/v1/diff/<int:id>', endpoint='diff')
 # Instead of having two different endpoints for the same purpose, it is easier to transform the side in a parameter
 # The parameter is treated inside method calls
