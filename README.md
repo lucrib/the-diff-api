@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/lucrib/waes-assignment.svg?branch=master)](https://travis-ci.org/lucrib/waes-assignment)
+
 # Diff REST API
 This is a simple rest api developed over flask that receives base64 encoded data through JSON and 
 generate the diff between them.
