@@ -289,4 +289,4 @@ class TestDiffAPI(BaseTest):
         assert_that(r_data, equal_to(ed))
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)
