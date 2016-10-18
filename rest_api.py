@@ -68,7 +68,7 @@ def diff(left, right):
         l = base64.b64decode(left)
         r = base64.b64decode(right)
     except Exception as e:
-        return -2, unicode(e.message)
+        return -3, unicode(e.message)
     if l == r:
         return 0, u'The data are equals'
     n, m = len(l), len(r)
