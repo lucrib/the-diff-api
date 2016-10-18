@@ -38,7 +38,7 @@ _Notice: The id is informed in the url only, if the id is already in use the ser
 The answer will be a JSON:
 ```json
 {
-    "id": 1
+    "id": 1,
     "side": "left",
     "uri": "http://hostname/v1/1/left"
 }
