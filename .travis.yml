@@ -2,8 +2,8 @@ language: python
 
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y virtualenv
-  - mkdir venv
+  - sudo pip install virtualenv
+  - virtualenv venv
   - source venv/bin/activate
   - python db_create.py
 
