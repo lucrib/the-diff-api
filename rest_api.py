@@ -5,57 +5,76 @@ from flask import Flask, jsonify, abort, make_response
 from flask_restful import Resource, reqparse, Api
 from flask_sqlalchemy import SQLAlchemy
 
+"""
+Diff REST API
+
+A simple REST API intended to received data to be compared.
+The must be provided in base64 encoded.
+The data must follows the JSON formats documented in the README.md
+"""
 
 # Creates the Flask app
 app = Flask(__name__, static_url_path="")
 app.config.from_pyfile('config.py')
+# Using Flask-SQLAlchemy in order to ease the database management
 db = SQLAlchemy(app)
 api = Api(app)
 
 
 # DATA MODELS
-
 class DiffModel(db.Model):
     """
-    The model that represents a 'diff side data' in the database
+    The model that represents a 'diff incoming data' in the database
     """
     __tablename__ = "DIFF"
+
     id = db.Column('id', db.Integer, primary_key=True, nullable=False)
     side = db.Column('side', db.String, primary_key=True, nullable=False)
     data = db.Column('data', db.String, nullable=False)
 
     def __init__(self, id, side, data):
         """
-        Creates a new DiffModel object that can be used to operate the database
-        :param id: The data ID
-        :param side: The data SIDE
-        :param data: The data itself
+        Creates a new DiffModel object
+        :param id: The diff ID
+        :param side: The diff SIDE
+        :param data: The data
         """
         self.id = id
         self.side = side
         self.data = data
 
     def __repr__(self):
-        return '<id:%d, side:%s>' % (self.id, self.side)
+        """
+        Creates an string representation for the data
+        :rtype: str
+        """
+        r = '<id: %d, side: %s, data: %s>' % (self.id, self.side, self.data[:20])
+        return r
 
     def __str__(self):
+        """
+        Creates a String representation of the object
+        :rtype: str
+        """
         d = {
             'id': self.id,
             'side': self.side,
             'data': self.data
         }
-        return d
+        return str(d)
 
 
 # THE DIFF LOGIC
-
 def diff(left, right):
     """
-    The diff generator
+    The diff algorithm
+
+    This is simples algorithm that receives two base64 strings, decode the data to their string representation a
+    nd loop data looking for different parts
 
     The possible returns are:
-    -2 and  Error message if an exception happens
-    -1 and warning message if the data sizes are diferent
+    -3 and  Error message if an exception happens
+    -1 and warning message if the data sizes are different
     0 and message if the data are equals
     >= 1 the code will be amount of diffs found and the message will be the diffs
 
