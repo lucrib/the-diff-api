@@ -8,8 +8,9 @@ from hamcrest import *
 
 """
 This file contains the integration tests for both APIs.
-There is a lot more tests tha could be writen here considering the actual implementation, but, did not have time. :'(
 """
+
+# There is a lot more tests tha could be writen here considering the actual implementation, but, did not have time. :'(
 
 
 # TODO Create a test database before testing

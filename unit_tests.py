@@ -1,8 +1,6 @@
 import base64
 import unittest
-
 from hamcrest import *
-
 from rest_api import diff
 
 
