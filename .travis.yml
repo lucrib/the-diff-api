@@ -1,9 +1,11 @@
 language: python
 
 before_install:
-  - sudo apt-get -qq update
+  - sudo apt-get update
   - sudo pip install virtualenv
+  - pip --version
   - virtualenv venv
+  - virtualenv --version
   - source venv/bin/activate
 
 python:
@@ -17,4 +19,3 @@ script:
   - python db_create.py
   - python unit_tests.py
   - python integration_tests.py
-  
