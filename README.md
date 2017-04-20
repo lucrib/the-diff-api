@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/lucrib/waes-assignment.svg?branch=master)](https://travis-ci.org/lucrib/waes-assignment)
+[![Build Status](https://travis-ci.org/lucrib/the-diff-api.svg?branch=master)](https://travis-ci.org/lucrib/the-diff-api)
 
 # Diff REST API
 This is a simple rest api developed over flask that receives base64 encoded data through JSON and 
